@@ -1,65 +1,112 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useCallback } from "react";
+import { Area } from "react-easy-crop";
+import StepIndicator from "@/components/StepIndicator";
+import CaptureStep from "@/components/CaptureStep";
+import CropStep from "@/components/CropStep";
+import ReviewStep from "@/components/ReviewStep";
+import { getCroppedImage } from "@/lib/cropImage";
+import { validateFile } from "@/lib/validateImage";
+
+type Step = "CAPTURE" | "CROP" | "REVIEW";
+
+const STEP_INDEX: Record<Step, number> = { CAPTURE: 0, CROP: 1, REVIEW: 2 };
 
 export default function Home() {
+  const [step, setStep] = useState<Step>("CAPTURE");
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [resultBlob, setResultBlob] = useState<Blob | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [processing, setProcessing] = useState(false);
+
+  const handleImage = useCallback((src: string) => {
+    setError(null);
+    setImageSrc(src);
+    setStep("CROP");
+  }, []);
+
+  const handleFileImage = useCallback(
+    (file: File) => {
+      const fileCheck = validateFile(file);
+      if (!fileCheck.ok) {
+        setError(fileCheck.reason);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => handleImage(reader.result as string);
+      reader.readAsDataURL(file);
+    },
+    [handleImage],
+  );
+
+  const handleCrop = useCallback(
+    async (croppedAreaPixels: Area) => {
+      if (!imageSrc) return;
+      setProcessing(true);
+      try {
+        const blob = await getCroppedImage(imageSrc, croppedAreaPixels);
+        setResultBlob(blob);
+        setStep("REVIEW");
+      } catch {
+        setError("Failed to process image. Please try again.");
+      } finally {
+        setProcessing(false);
+      }
+    },
+    [imageSrc],
+  );
+
+  const startOver = () => {
+    setStep("CAPTURE");
+    setImageSrc(null);
+    setResultBlob(null);
+    setError(null);
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="flex min-h-dvh flex-col">
+      <header className="border-b border-gray-100 px-4">
+        <h1 className="text-center text-lg font-semibold py-3">SG IC Photo</h1>
+        <StepIndicator current={STEP_INDEX[step]} />
+      </header>
+
+      {error && (
+        <div className="mx-4 mt-3 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+          <button onClick={() => setError(null)} className="ml-2 font-medium underline">
+            Dismiss
+          </button>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+      )}
+
+      <main className="flex flex-1 flex-col">
+        {step === "CAPTURE" && (
+          <CaptureStep onFile={handleFileImage} onCapture={handleImage} />
+        )}
+        {step === "CROP" && imageSrc && (
+          <CropStep
+            imageSrc={imageSrc}
+            onCrop={handleCrop}
+            onBack={() => setStep("CAPTURE")}
+          />
+        )}
+        {step === "REVIEW" && resultBlob && (
+          <ReviewStep
+            blob={resultBlob}
+            onBack={() => setStep("CROP")}
+            onStartOver={startOver}
+          />
+        )}
       </main>
+
+      {processing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="rounded-xl bg-white px-8 py-6 shadow-lg">
+            <p className="text-gray-700">Processing...</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
