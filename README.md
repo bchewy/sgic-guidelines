@@ -1,28 +1,34 @@
 # SG IC Photo
 
-A web app to create Singapore IC/passport-compliant photos. Capture or upload a photo, crop to the correct aspect ratio, and enhance it using AI to meet ICA (Immigration & Checkpoints Authority) photo guidelines.
+Web app to create Singapore IC/passport-compliant photos. Capture or upload a photo, crop to 400×514px, and optionally enhance it with Gemini AI to meet [ICA photo guidelines](https://www.ica.gov.sg/photo-guidelines).
+
+## Flow
+
+Capture → Crop → Review & Enhance → Download
 
 ## Features
 
-- Camera capture or file upload
-- Guided cropping with correct aspect ratio
-- AI enhancement via Gemini to:
-  - Set pure white background
-  - Fix lighting and exposure
-  - Remove red-eye
-  - Ensure proper contrast
+- Camera capture or file upload (JPG, PNG, HEIC/HEIF up to 8 MB)
+- Guided cropping at the correct 400×514 aspect ratio
+- AI enhancement (optional) via Gemini 3 Pro Image:
+  - Pure white background
+  - Even lighting and correct exposure/white balance
+  - Red-eye removal
+  - Colour cast correction
+  - Preserves facial features — no cosmetic alterations
+- Side-by-side before/after comparison
+- Download original or enhanced version
 
 ## Setup
 
 ```bash
 npm install
-cp .env.example .env.local
 ```
 
-Add your Gemini API key to `.env.local`:
+Create `.env.local` with your [Gemini API key](https://aistudio.google.com/apikey):
 
 ```
-GEMINI_API_KEY=your-actual-api-key
+GEMINI_API_KEY=your-api-key
 ```
 
 ## Development
@@ -38,4 +44,4 @@ Open [http://localhost:3000](http://localhost:3000).
 - Next.js 16
 - React 19
 - Tailwind CSS
-- Google Gemini API (image generation)
+- Google Gemini 3 Pro Image (`@google/genai`)
